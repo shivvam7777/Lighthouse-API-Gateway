@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lighthouse API Gateway - Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 50px; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 500px; }
+        h2 { color: #2c3e50; text-align: center; }
+        .input-group { margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2980b9; }
+        #logs { margin-top: 20px; padding: 15px; background: #2c3e50; color: #ecf0f1; border-radius: 8px; font-family: monospace; height: 150px; overflow-y: auto; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Lighthouse API Gateway</h2>
+        <div class="input-group">
+            <input type="text" id="routeInput" placeholder="Enter path (e.g. /api/payments)">
+        </div>
+        <button onclick="processRequest()">Send Request</button>
+        <div id="logs">System Ready...<br>Waiting for requests...</div>
+    </div>
+
+    <script>
+        let reqCount = 0;
+        let lastReset = Date.now();
+
+        function processRequest() {
+            const path = document.getElementById('routeInput').value;
+            const logs = document.getElementById('logs');
+            const now = Date.now();
+
+            // 10 seconds ka window: Agar 10s beet gaye toh count reset kar do
+            if (now - lastReset > 10000) {
+                reqCount = 0;
+                lastReset = now;
+                logs.innerHTML += `<br><span style="color: #3498db;">[SYSTEM]: Rate limit window reset.</span>`;
+            }
+
+            reqCount++;
+            let status = `<br>[LOG]: Incoming: ${path}`;
+            
+            // Simulation logic
+            if (reqCount > 3) {
+                status += `<br><span style="color: #e74c3c;">[AUTH ERROR]: Rate Limit Exceeded! (Wait 10s)</span>`;
+            } else if (path.includes("admin")) {
+                status += `<br><span style="color: #e74c3c;">[AUTH ERROR]: Admin Access Denied!</span>`;
+            } else if (path === "/api/payments" || path === "/api/users") {
+                status += `<br><span style="color: #2ecc71;">[SUCCESS]: Routing to Backend...</span>`;
+            } else {
+                status += `<br><span style="color: #f1c40f;">[404]: Path Not Registered!</span>`;
+            }
+            
+            logs.innerHTML += status;
+            logs.scrollTop = logs.scrollHeight;
+        }
+    </script>
+</body>
+</html>

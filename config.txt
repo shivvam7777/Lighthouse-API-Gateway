@@ -1,0 +1,5 @@
+/api/users http://localhost:8081/users
+/api/orders http://localhost:8082/orders
+/api/payments http://localhost:8083/payments
+/api/inventory http://localhost:8084/inventory
+/api/help http://localhost:9000/support
