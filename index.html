@@ -2,56 +2,83 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Lighthouse API Gateway - Dashboard</title>
+    <title>Lighthouse API Gateway - v5.0 Dashboard</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 50px; }
         .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 500px; }
-        h2 { color: #2c3e50; text-align: center; }
-        .input-group { margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        h2 { color: #2c3e50; text-align: center; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
+        .input-group { margin-bottom: 20px; display: flex; gap: 10px; }
+        input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { padding: 12px 20px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         button:hover { background: #2980b9; }
-        #logs { margin-top: 20px; padding: 15px; background: #2c3e50; color: #ecf0f1; border-radius: 8px; font-family: monospace; height: 150px; overflow-y: auto; font-size: 13px; }
+        #logs { margin-top: 20px; padding: 15px; background: #1a252f; color: #ecf0f1; border-radius: 8px; font-family: 'Courier New', monospace; height: 200px; overflow-y: auto; font-size: 13px; line-height: 1.6; border-left: 5px solid #3498db; }
+        .status-bar { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 10px; color: #34495e; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>Lighthouse API Gateway</h2>
+        <p class="subtitle">v5.0: Security & Performance Enabled</p>
+        
+        <div class="status-bar">
+            <span>🛡️ IP: 127.0.0.1 (Trusted)</span>
+            <span id="cache-count">⚡ Cache: Empty</span>
+        </div>
+
         <div class="input-group">
             <input type="text" id="routeInput" placeholder="Enter path (e.g. /api/payments)">
+            <button onclick="processRequest()">Send</button>
         </div>
-        <button onclick="processRequest()">Send Request</button>
-        <div id="logs">System Ready...<br>Waiting for requests...</div>
+
+        <div id="logs">System Initialized...<br>Ready for secure requests.</div>
     </div>
 
     <script>
         let reqCount = 0;
         let lastReset = Date.now();
+        let cacheStore = new Set(); // Caching storage
+        const allowedIP = "127.0.0.1";
 
         function processRequest() {
-            const path = document.getElementById('routeInput').value;
+            const path = document.getElementById('routeInput').value.trim();
             const logs = document.getElementById('logs');
+            const cacheStatus = document.getElementById('cache-count');
             const now = Date.now();
 
-            // 10 seconds ka window: Agar 10s beet gaye toh count reset kar do
+            if (!path) return;
+
+            // 1. IP Whitelist Simulation
+            logs.innerHTML += `<br><span style="color: #9b59b6;">[IP CHECK]: Request from ${allowedIP} - Access Granted.</span>`;
+
+            // 2. Response Caching Simulation
+            if (cacheStore.has(path)) {
+                logs.innerHTML += `<br><span style="color: #2ecc71; font-weight: bold;">[CACHE HIT]: Serving result for ${path} (Latency: 0ms)</span>`;
+                logs.scrollTop = logs.scrollHeight;
+                return; // Early exit - Skip other middlewares
+            }
+
+            // 3. Rate Limiting Logic
             if (now - lastReset > 10000) {
                 reqCount = 0;
                 lastReset = now;
-                logs.innerHTML += `<br><span style="color: #3498db;">[SYSTEM]: Rate limit window reset.</span>`;
+                logs.innerHTML += `<br><span style="color: #3498db;">[SYSTEM]: Rate limit window refreshed.</span>`;
             }
 
             reqCount++;
-            let status = `<br>[LOG]: Incoming: ${path}`;
-            
-            // Simulation logic
+            let status = `<br>[LOG]: Processing path: ${path}...`;
+
             if (reqCount > 3) {
-                status += `<br><span style="color: #e74c3c;">[AUTH ERROR]: Rate Limit Exceeded! (Wait 10s)</span>`;
+                status += `<br><span style="color: #e74c3c;">[ERROR]: Rate Limit Exceeded! Please wait.</span>`;
             } else if (path.includes("admin")) {
-                status += `<br><span style="color: #e74c3c;">[AUTH ERROR]: Admin Access Denied!</span>`;
-            } else if (path === "/api/payments" || path === "/api/users") {
-                status += `<br><span style="color: #2ecc71;">[SUCCESS]: Routing to Backend...</span>`;
+                status += `<br><span style="color: #e74c3c;">[SECURITY]: 403 Forbidden! Admin path blocked.</span>`;
+            } else if (path === "/api/payments" || path === "/api/users" || path === "/api/orders") {
+                status += `<br><span style="color: #f1c40f;">[CACHE MISS]: Fetching from Backend...</span>`;
+                status += `<br><span style="color: #2ecc71;">[SUCCESS]: Response stored in cache.</span>`;
+                cacheStore.add(path); // Store in cache for next time
+                cacheStatus.innerText = `⚡ Cache: ${cacheStore.size} items`;
             } else {
-                status += `<br><span style="color: #f1c40f;">[404]: Path Not Registered!</span>`;
+                status += `<br><span style="color: #7f8c8d;">[404]: Path Not Found.</span>`;
             }
             
             logs.innerHTML += status;
