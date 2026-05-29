@@ -2,24 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Lighthouse API Gateway - v5.0 Dashboard</title>
+    <title>Lighthouse API Gateway - v6.0 Enterprise Dashboard</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 50px; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 500px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 30px; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 550px; }
         h2 { color: #2c3e50; text-align: center; margin-bottom: 5px; }
-        .subtitle { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
-        .input-group { margin-bottom: 20px; display: flex; gap: 10px; }
+        .subtitle { text-align: center; color: #1abc9c; font-size: 14px; font-weight: bold; margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+        .input-row { display: flex; gap: 10px; }
+        label { font-size: 13px; color: #34495e; font-weight: bold; margin-left: 20px; }
         input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { padding: 12px 20px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        button:hover { background: #2980b9; }
-        #logs { margin-top: 20px; padding: 15px; background: #1a252f; color: #ecf0f1; border-radius: 8px; font-family: 'Courier New', monospace; height: 200px; overflow-y: auto; font-size: 13px; line-height: 1.6; border-left: 5px solid #3498db; }
+        button { padding: 12px 20px; background: #1abc9c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #16a085; }
+        
+        /* New Load Balancer Node Visualization CSS */
+        .server-pool { display: flex; justify-content: space-around; margin: 15px 0; padding: 10px; background: #ecf0f1; border-radius: 8px; gap: 5px; }
+        .server-node { padding: 8px 12px; font-size: 12px; background: #bdc3c7; color: #34495e; border-radius: 5px; font-weight: bold; transition: all 0.3s ease; border: 2px solid transparent; }
+        .server-node.active { background: #2ecc71; color: white; box-shadow: 0 0 10px #2ecc71; border-color: #27ae60; }
+        
+        #logs { margin-top: 15px; padding: 15px; background: #1a252f; color: #ecf0f1; border-radius: 8px; font-family: 'Courier New', monospace; height: 220px; overflow-y: auto; font-size: 13px; line-height: 1.6; border-left: 5px solid #1abc9c; }
         .status-bar { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 10px; color: #34495e; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>Lighthouse API Gateway</h2>
-        <p class="subtitle">v5.0: Security & Performance Enabled</p>
+        <p class="subtitle">v6.0: Enterprise Auth & Load Balancing</p>
         
         <div class="status-bar">
             <span>🛡️ IP: 127.0.0.1 (Trusted)</span>
@@ -27,38 +35,74 @@
         </div>
 
         <div class="input-group">
-            <input type="text" id="routeInput" placeholder="Enter path (e.g. /api/payments)">
-            <button onclick="processRequest()">Send</button>
+            <label for="jwtInput">HTTP Authorization Header (JWT Token):</label>
+            <input type="text" id="jwtInput" placeholder="Enter JWT Token (Use mock valid token: eyJhbGciOi...)" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9">
         </div>
 
-        <div id="logs">System Initialized...<br>Ready for secure requests.</div>
+        <div class="input-group">
+            <label for="routeInput">Target Path:</label>
+            <div class="input-row">
+                <input type="text" id="routeInput" placeholder="Enter path (e.g. /api/payments)">
+                <button onclick="processRequest()">Send</button>
+            </div>
+        </div>
+
+        <div class="server-pool">
+            <div id="srv-01" class="server-node">srv-prod-01 (Idle)</div>
+            <div id="srv-02" class="server-node">srv-prod-02 (Idle)</div>
+            <div id="srv-03" class="server-node">srv-prod-03 (Idle)</div>
+        </div>
+
+        <div id="logs">System Initialized v6.0...<br>Ready for secure, balanced requests.</div>
     </div>
 
     <script>
         let reqCount = 0;
         let lastReset = Date.now();
-        let cacheStore = new Set(); // Caching storage
+        let cacheStore = new Set(); 
         const allowedIP = "127.0.0.1";
+        
+        // Load Balancer Configuration Tracking
+        const serverNodes = ["srv-01", "srv-02", "srv-03"];
+        let nextServerIndex = 0;
+        const validJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
 
         function processRequest() {
             const path = document.getElementById('routeInput').value.trim();
+            const jwtToken = document.getElementById('jwtInput').value.trim();
             const logs = document.getElementById('logs');
             const cacheStatus = document.getElementById('cache-count');
             const now = Date.now();
 
             if (!path) return;
 
-            // 1. IP Whitelist Simulation
+            // Reset visual active server highlighted statuses
+            serverNodes.forEach(id => document.getElementById(id).className = "server-node");
+
+            // 1. IP Whitelist Simulation Layer
             logs.innerHTML += `<br><span style="color: #9b59b6;">[IP CHECK]: Request from ${allowedIP} - Access Granted.</span>`;
 
-            // 2. Response Caching Simulation
-            if (cacheStore.has(path)) {
-                logs.innerHTML += `<br><span style="color: #2ecc71; font-weight: bold;">[CACHE HIT]: Serving result for ${path} (Latency: 0ms)</span>`;
+            // 2. Advanced Security Check: JWT Token Validation Layer
+            if (!jwtToken) {
+                logs.innerHTML += `<br><span style="color: #e74c3c; font-weight: bold;">[AUTH ERROR]: 401 Unauthorized - Missing JWT Token! Request Dropped.</span>`;
                 logs.scrollTop = logs.scrollHeight;
-                return; // Early exit - Skip other middlewares
+                return;
+            }
+            if (jwtToken !== validJWT) {
+                logs.innerHTML += `<br><span style="color: #e74c3c; font-weight: bold;">[AUTH ERROR]: 403 Forbidden - Invalid/Expired Token Signature! Request Dropped.</span>`;
+                logs.scrollTop = logs.scrollHeight;
+                return;
+            }
+            logs.innerHTML += `<br><span style="color: #1abc9c;">[JWT AUTH]: Token Verified Successfully. Signature Match.</span>`;
+
+            // 3. Response Caching Simulation Layer (0ms Latency Bypass)
+            if (cacheStore.has(path)) {
+                logs.innerHTML += `<br><span style="color: #2ecc71; font-weight: bold;">[CACHE HIT]: Serving snapshot for ${path} (Latency: 0ms) [Bypassing Backend Servers]</span>`;
+                logs.scrollTop = logs.scrollHeight;
+                return; 
             }
 
-            // 3. Rate Limiting Logic
+            // 4. Rate Limiting Layer
             if (now - lastReset > 10000) {
                 reqCount = 0;
                 lastReset = now;
@@ -66,19 +110,32 @@
             }
 
             reqCount++;
-            let status = `<br>[LOG]: Processing path: ${path}...`;
+            let status = `<br>[LOG]: Processing path through Trie Engine: ${path}...`;
 
             if (reqCount > 3) {
-                status += `<br><span style="color: #e74c3c;">[ERROR]: Rate Limit Exceeded! Please wait.</span>`;
+                status += `<br><span style="color: #e74c3c;">[ERROR]: Rate Limit Exceeded! Request rate throttled.</span>`;
             } else if (path.includes("admin")) {
-                status += `<br><span style="color: #e74c3c;">[SECURITY]: 403 Forbidden! Admin path blocked.</span>`;
-            } else if (path === "/api/payments" || path === "/api/users" || path === "/api/orders") {
-                status += `<br><span style="color: #f1c40f;">[CACHE MISS]: Fetching from Backend...</span>`;
-                status += `<br><span style="color: #2ecc71;">[SUCCESS]: Response stored in cache.</span>`;
-                cacheStore.add(path); // Store in cache for next time
+                status += `<br><span style="color: #e74c3c;">[SECURITY]: 403 Forbidden Route! Admin namespace path blocked.</span>`;
+            
+            // Fixed Line Below: Added inventory and help endpoints to match your config.txt
+            } else if (path === "/api/payments" || path === "/api/users" || path === "/api/orders" || path === "/api/inventory" || path === "/api/help") {
+                status += `<br><span style="color: #f1c40f;">[CACHE MISS]: Searching Trie Nodes... Route Matched.</span>`;
+                
+                // 5. Dynamic Load Balancer Logic Integration (Round Robin Simulation)
+                let targetNodeId = serverNodes[nextServerIndex];
+                let targetNodeElement = document.getElementById(targetNodeId);
+                targetNodeElement.className = "server-node active";
+                
+                status += `<br><span style="color: #3498db; font-weight: bold;">[LOAD BALANCER]: Request forwarded to backend cluster node -> http://${targetNodeElement.innerText.split(' ')[0]}.internal</span>`;
+                status += `<br><span style="color: #2ecc71;">[SUCCESS]: Content updated and stored in Local Cache Engine.</span>`;
+                
+                // Increment balancer rotation index pointer
+                nextServerIndex = (nextServerIndex + 1) % serverNodes.length;
+
+                cacheStore.add(path); 
                 cacheStatus.innerText = `⚡ Cache: ${cacheStore.size} items`;
             } else {
-                status += `<br><span style="color: #7f8c8d;">[404]: Path Not Found.</span>`;
+                status += `<br><span style="color: #7f8c8d;">[404]: Destination Endpoint Path Not Found in Trie Architecture.</span>`;
             }
             
             logs.innerHTML += status;
