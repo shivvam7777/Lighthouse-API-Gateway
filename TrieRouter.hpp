@@ -19,10 +19,15 @@ private:
 
     std::vector<std::string> splitPath(std::string path) {
         std::vector<std::string> segments;
+        if (path.empty() || path == "/") return segments;
+
         size_t start = (path[0] == '/') ? 1 : 0;
         size_t end = 0;
         while ((end = path.find('/', start)) != std::string::npos) {
-            segments.push_back(path.substr(start, end - start));
+            // Edge case check: multiple continuous slashes like // ko handle karne ke liye
+            if (end > start) {
+                segments.push_back(path.substr(start, end - start));
+            }
             start = end + 1;
         }
         if (start < path.length()) segments.push_back(path.substr(start));
