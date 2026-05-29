@@ -24,11 +24,13 @@ public:
         }
 
         // 2. Check karo ki limit cross toh nahi hui
-        if (requests.size() < maxRequests) {
+        if (requests.size() < static_cast<size_t>(maxRequests)) {
             requests.push_back(now);
             return true;
         }
 
+        // Production-level Alert Log
+        std::cout << "[RATE LIMIT ALERT]: 429 Too Many Requests - Throttling active for current window!" << std::endl;
         return false;
     }
 };
