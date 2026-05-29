@@ -20,7 +20,7 @@ public:
     }
 };
 
-// 2. Auth Filter (Basic Security)
+// 2. Basic Route Authorization (Admin Paths Check)
 class AuthMiddleware : public IMiddleware {
 public:
     bool execute(const std::string& path) override {
@@ -28,7 +28,7 @@ public:
             std::cout << "[AUTH ERROR]: Unauthorized! Admin access denied." << std::endl;
             return false;
         }
-        std::cout << "[AUTH]: User verified successfully." << std::endl;
+        std::cout << "[AUTH]: Route authorization checked successfully." << std::endl;
         return true;
     }
 };
